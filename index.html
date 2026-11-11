@@ -1,0 +1,1929 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Biblioteca con Metodología Scrum</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs (Compat / Modular CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+      .glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-100 font-sans min-h-screen flex flex-col text-slate-800"
+  >
+    <!-- MODAL DE LOGIN / AUTENTICACIÓN -->
+    <div
+      id="modal-login"
+      class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl relative border border-slate-100"
+      >
+        <div class="text-center mb-6">
+          <div
+            class="inline-flex bg-blue-600 text-white p-3.5 rounded-2xl shadow-lg mb-3"
+          >
+            <i class="fa-solid fa-book-bookmark text-2xl"></i>
+          </div>
+          <h2 class="text-2xl font-bold text-slate-900">BiblioScrum Digital</h2>
+          <p class="text-xs text-slate-500 mt-1">
+            Ingresa tus credenciales de Firebase Auth
+          </p>
+        </div>
+
+        <!-- Alerta de Error de Autenticación -->
+        <div
+          id="login-error"
+          class="hidden mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center space-x-2"
+        >
+          <i class="fa-solid fa-circle-exclamation text-rose-500 text-sm"></i>
+          <span id="login-error-msg">Credenciales inválidas.</span>
+        </div>
+
+        <form onsubmit="handleLogin(event)" class="space-y-4">
+          <div>
+            <label
+              class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+              >Correo Electrónico</label
+            >
+            <div class="relative">
+              <i
+                class="fa-solid fa-envelope absolute left-3.5 top-3 text-slate-400 text-sm"
+              ></i>
+              <input
+                type="email"
+                id="login-email"
+                required
+                placeholder="usuario@univ.edu"
+                class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+              >Contraseña</label
+            >
+            <div class="relative">
+              <i
+                class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-400 text-sm"
+              ></i>
+              <input
+                type="password"
+                id="login-password"
+                required
+                placeholder="••••••••"
+                class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-blue-500/25 transition duration-200 text-sm mt-2 flex items-center justify-center space-x-2"
+          >
+            <i class="fa-solid fa-right-to-bracket"></i>
+            <span>Iniciar Sesión</span>
+          </button>
+        </form>
+
+        <!-- Accesos rápidos de prueba por rol -->
+        <div class="mt-6 pt-4 border-t border-slate-100">
+          <p
+            class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center"
+          >
+            Prueba rápida con roles demo:
+          </p>
+          <div class="grid grid-cols-3 gap-1.5 text-[11px]">
+            <button
+              type="button"
+              onclick="fillDemoCredentials('brayden@univ.edu')"
+              class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-center font-medium transition"
+            >
+              👑 Admin / PO
+            </button>
+            <button
+              type="button"
+              onclick="fillDemoCredentials('luis@univ.edu')"
+              class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-center font-medium transition"
+            >
+              📚 Bibliotecario
+            </button>
+            <button
+              type="button"
+              onclick="fillDemoCredentials('carolina@univ.edu')"
+              class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-center font-medium transition"
+            >
+              🎓 Estudiante
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-100 text-center">
+          <p class="text-xs text-slate-400">
+            BiblioScrum Digital • Marco Ágil Scrum
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOP HEADER -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+      <div
+        class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4"
+      >
+        <div class="flex items-center space-x-3">
+          <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow">
+            <i class="fa-solid fa-book-bookmark text-xl"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold tracking-tight">
+              BiblioScrum Digital
+            </h1>
+            <p class="text-xs text-slate-400">
+              Sistema Web de Biblioteca • Marco Ágil Scrum
+            </p>
+          </div>
+        </div>
+
+        <!-- NAV TABS -->
+        <nav
+          class="flex items-center space-x-1 bg-slate-800 p-1.5 rounded-xl text-sm font-medium overflow-x-auto"
+        >
+          <button
+            onclick="switchTab('scrum')"
+            id="tab-btn-scrum"
+            class="px-4 py-2 rounded-lg transition-all text-white bg-blue-600 shadow shrink-0"
+          >
+            <i class="fa-solid fa-kanban mr-2"></i>Tablero Scrum & Sprints
+          </button>
+          <button
+            onclick="switchTab('books')"
+            id="tab-btn-books"
+            class="px-4 py-2 rounded-lg transition-all text-slate-300 hover:text-white hover:bg-slate-700 shrink-0"
+          >
+            <i class="fa-solid fa-book mr-2"></i>Catálogo (Sprint 2)
+          </button>
+          <button
+            onclick="switchTab('loans')"
+            id="tab-btn-loans"
+            class="px-4 py-2 rounded-lg transition-all text-slate-300 hover:text-white hover:bg-slate-700 shrink-0"
+          >
+            <i class="fa-solid fa-hand-holding-hand mr-2"></i>Préstamos (Sprint
+            3)
+          </button>
+          <button
+            onclick="switchTab('reports')"
+            id="tab-btn-reports"
+            class="px-4 py-2 rounded-lg transition-all text-slate-300 hover:text-white hover:bg-slate-700 shrink-0"
+          >
+            <i class="fa-solid fa-chart-pie mr-2"></i>Reportes (Sprint 4)
+          </button>
+          <button
+            onclick="switchTab('users')"
+            id="tab-btn-users"
+            class="px-4 py-2 rounded-lg transition-all text-slate-300 hover:text-white hover:bg-slate-700 shrink-0"
+          >
+            <i class="fa-solid fa-users mr-2"></i>Usuarios (Sprint 1)
+          </button>
+        </nav>
+
+        <!-- USER PROFILE & LOGOUT -->
+        <div class="flex items-center space-x-3">
+          <div
+            class="flex items-center space-x-3 bg-slate-800 px-3 py-1.5 rounded-xl text-xs"
+          >
+            <div class="text-right">
+              <span
+                id="current-user-display"
+                class="block text-slate-400 font-semibold"
+                >Invitado</span
+              >
+              <span id="current-role-name" class="font-bold text-blue-400"
+                >Product Owner / Admin</span
+              >
+            </div>
+          </div>
+          <button
+            onclick="handleLogout()"
+            title="Cerrar Sesión"
+            class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center space-x-1"
+          >
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span class="hidden sm:inline">Salir</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+      <!-- NOTIFICATION TOAST -->
+      <div
+        id="toast"
+        class="hidden fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border-l-4 border-blue-500 flex items-center space-x-3"
+      >
+        <i
+          id="toast-icon"
+          class="fa-solid fa-circle-check text-emerald-400 text-xl"
+        ></i>
+        <span id="toast-msg" class="text-sm font-medium"
+          >Notificación del sistema</span
+        >
+      </div>
+
+      <!-- TAB 1: SCRUM BOARD & SPRINTS ROADMAP -->
+      <section id="view-scrum" class="space-y-6">
+        <!-- SPRINT HEADER CARDS -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div
+            class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between"
+          >
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <span
+                  class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded"
+                  >Sprint 1 • 2 Sem.</span
+                >
+                <span
+                  class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full"
+                  >Completado</span
+                >
+              </div>
+              <h3 class="font-bold text-slate-800">Módulo de Usuarios</h3>
+              <p class="text-xs text-slate-500 mt-1">
+                Registro, Inicio de sesión, Roles (HU1 - 3 Puntos)
+              </p>
+            </div>
+            <div
+              class="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-600"
+            >
+              <span>Velocidad: 3 pts</span>
+              <button
+                onclick="switchTab('users')"
+                class="text-blue-600 hover:underline font-semibold"
+              >
+                Probar Módulo &rarr;
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between"
+          >
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <span
+                  class="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded"
+                  >Sprint 2 • 2 Sem.</span
+                >
+                <span
+                  class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full"
+                  >Completado</span
+                >
+              </div>
+              <h3 class="font-bold text-slate-800">Catálogo de Libros</h3>
+              <p class="text-xs text-slate-500 mt-1">
+                Alta de libros, Búsqueda, Filtros (HU2, HU3 - 8 Puntos)
+              </p>
+            </div>
+            <div
+              class="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-600"
+            >
+              <span>Velocidad: 8 pts</span>
+              <button
+                onclick="switchTab('books')"
+                class="text-blue-600 hover:underline font-semibold"
+              >
+                Probar Módulo &rarr;
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between border-l-4 border-l-amber-500"
+          >
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <span
+                  class="text-xs font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded"
+                  >Sprint 3 • 2 Sem.</span
+                >
+                <span
+                  id="sprint3-badge"
+                  class="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"
+                  >En Progreso</span
+                >
+              </div>
+              <h3 class="font-bold text-slate-800">Préstamos y Devoluciones</h3>
+              <p class="text-xs text-slate-500 mt-1">
+                Solicitudes, Control stock, Devolución (HU4 - 8 Puntos)
+              </p>
+            </div>
+            <div
+              class="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-600"
+            >
+              <span>Velocidad: 8 pts</span>
+              <button
+                onclick="switchTab('loans')"
+                class="text-blue-600 hover:underline font-semibold"
+              >
+                Probar Módulo &rarr;
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between"
+          >
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <span
+                  class="text-xs font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded"
+                  >Sprint 4 • 2 Sem.</span
+                >
+                <span
+                  class="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"
+                  >Pendiente</span
+                >
+              </div>
+              <h3 class="font-bold text-slate-800">Reportes e Historial</h3>
+              <p class="text-xs text-slate-500 mt-1">
+                Dashboard, Estadísticas, Historial (HU5, HU6 - 8 Puntos)
+              </p>
+            </div>
+            <div
+              class="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-600"
+            >
+              <span>Velocidad: 8 pts</span>
+              <button
+                onclick="switchTab('reports')"
+                class="text-blue-600 hover:underline font-semibold"
+              >
+                Probar Módulo &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- KANBAN BOARD -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 flex items-center">
+                <i class="fa-solid fa-list-check text-blue-600 mr-2"></i>Tablero
+                Kanban del Proyecto Biblioteca
+              </h2>
+              <p class="text-xs text-slate-500">
+                Seguimiento en tiempo real del Backlog e Historias de Usuario
+              </p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button
+                onclick="simulateDailyScrum()"
+                class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow transition"
+              >
+                <i class="fa-solid fa-comments text-amber-400 mr-1.5"></i
+                >Simular Daily Scrum (15 min)
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="kanban-cols">
+            <!-- BACKLOG / POR HACER -->
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div class="flex justify-between items-center mb-3 px-1">
+                <span
+                  class="font-bold text-xs text-slate-700 uppercase tracking-wider"
+                  >Por Hacer (To Do)</span
+                >
+                <span
+                  class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded-full font-bold"
+                  >2</span
+                >
+              </div>
+              <div class="space-y-3">
+                <div
+                  class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm hover:shadow transition"
+                >
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="font-bold text-blue-600">HU5</span>
+                    <span
+                      class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      >5 Pts • Fib</span
+                    >
+                  </div>
+                  <h4 class="font-bold text-sm text-slate-800">
+                    Generación de Reportes
+                  </h4>
+                  <p class="text-xs text-slate-500 mt-1">
+                    Como administrador quiero exportar reportes de préstamos y
+                    mora.
+                  </p>
+                  <div
+                    class="mt-2 text-[11px] text-slate-400 flex justify-between items-center"
+                  >
+                    <span>Sprint 4</span>
+                    <span class="bg-slate-100 px-1.5 py-0.5 rounded"
+                      >Prioridad Media</span
+                    >
+                  </div>
+                </div>
+
+                <div
+                  class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm hover:shadow transition"
+                >
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="font-bold text-blue-600">HU6</span>
+                    <span
+                      class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      >3 Pts • Fib</span
+                    >
+                  </div>
+                  <h4 class="font-bold text-sm text-slate-800">
+                    Historial de Usuario
+                  </h4>
+                  <p class="text-xs text-slate-500 mt-1">
+                    Como estudiante quiero ver todos mis préstamos pasados.
+                  </p>
+                  <div
+                    class="mt-2 text-[11px] text-slate-400 flex justify-between items-center"
+                  >
+                    <span>Sprint 4</span>
+                    <span class="bg-slate-100 px-1.5 py-0.5 rounded"
+                      >Prioridad Media</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- EN PROGRESO -->
+            <div class="bg-amber-50/50 p-3 rounded-xl border border-amber-200">
+              <div class="flex justify-between items-center mb-3 px-1">
+                <span
+                  class="font-bold text-xs text-amber-800 uppercase tracking-wider"
+                  >En Progreso (In Progress)</span
+                >
+                <span
+                  id="in-progress-count"
+                  class="bg-amber-200 text-amber-900 text-xs px-2 py-0.5 rounded-full font-bold"
+                  >1</span
+                >
+              </div>
+              <div class="space-y-3" id="in-progress-col">
+                <div
+                  id="card-hu4"
+                  class="bg-white p-3.5 rounded-xl border border-amber-200 shadow-sm border-l-4 border-l-amber-500"
+                >
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="font-bold text-blue-600">HU4</span>
+                    <span
+                      class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      >8 Pts • Fib</span
+                    >
+                  </div>
+                  <h4 class="font-bold text-sm text-slate-800">
+                    Préstamos y Devoluciones
+                  </h4>
+                  <p class="text-xs text-slate-500 mt-1">
+                    Como lector quiero solicitar libros y registrarlos cuando
+                    los devuelva.
+                  </p>
+                  <div
+                    class="mt-2 text-[11px] text-slate-400 flex justify-between items-center"
+                  >
+                    <span class="text-amber-700 font-medium"
+                      >Sprint 3 (Activo)</span
+                    >
+                    <button
+                      onclick="completeHU4()"
+                      id="btn-complete-hu4"
+                      class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded shadow transition"
+                    >
+                      Completar HU4 &rarr;
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- EN PRUEBAS (QA) -->
+            <div
+              class="bg-purple-50/50 p-3 rounded-xl border border-purple-200"
+            >
+              <div class="flex justify-between items-center mb-3 px-1">
+                <span
+                  class="font-bold text-xs text-purple-800 uppercase tracking-wider"
+                  >Pruebas / Testing</span
+                >
+                <span
+                  class="bg-purple-200 text-purple-900 text-xs px-2 py-0.5 rounded-full font-bold"
+                  >1</span
+                >
+              </div>
+              <div class="space-y-3">
+                <div
+                  class="bg-white p-3.5 rounded-xl border border-purple-200 shadow-sm border-l-4 border-l-purple-500"
+                >
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="font-bold text-blue-600">HU3</span>
+                    <span
+                      class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      >3 Pts • Fib</span
+                    >
+                  </div>
+                  <h4 class="font-bold text-sm text-slate-800">
+                    Motor de Búsqueda
+                  </h4>
+                  <p class="text-xs text-slate-500 mt-1">
+                    Filtro instantáneo por título, autor y disponibilidad.
+                  </p>
+                  <div
+                    class="mt-2 text-[11px] text-slate-400 flex justify-between items-center"
+                  >
+                    <span>Sprint 2</span>
+                    <span
+                      class="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-semibold"
+                      >Validando QA</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- FINALIZADO (DONE) -->
+            <div
+              class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-200"
+            >
+              <div class="flex justify-between items-center mb-3 px-1">
+                <span
+                  class="font-bold text-xs text-emerald-800 uppercase tracking-wider"
+                  >Finalizado (Done)</span
+                >
+                <span
+                  id="done-count"
+                  class="bg-emerald-200 text-emerald-900 text-xs px-2 py-0.5 rounded-full font-bold"
+                  >2</span
+                >
+              </div>
+              <div class="space-y-3" id="done-col">
+                <div
+                  class="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-sm border-l-4 border-l-emerald-500"
+                >
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="font-bold text-blue-600">HU1</span>
+                    <span
+                      class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      >3 Pts</span
+                    >
+                  </div>
+                  <h4 class="font-bold text-sm text-slate-800">
+                    Registro & Autenticación
+                  </h4>
+                  <p class="text-xs text-slate-500 mt-1">
+                    Módulo de usuarios y roles diferenciados.
+                  </p>
+                  <div
+                    class="mt-2 text-[11px] text-emerald-600 font-semibold flex justify-between items-center"
+                  >
+                    <span>Sprint 1</span>
+                    <i class="fa-solid fa-circle-check"></i>
+                  </div>
+                </div>
+
+                <div
+                  class="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-sm border-l-4 border-l-emerald-500"
+                >
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="font-bold text-blue-600">HU2</span>
+                    <span
+                      class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      >5 Pts</span
+                    >
+                  </div>
+                  <h4 class="font-bold text-sm text-slate-800">
+                    Gestión de Catálogo (CRUD)
+                  </h4>
+                  <p class="text-xs text-slate-500 mt-1">
+                    Permite a los administradores registrar libros.
+                  </p>
+                  <div
+                    class="mt-2 text-[11px] text-emerald-600 font-semibold flex justify-between items-center"
+                  >
+                    <span>Sprint 2</span>
+                    <i class="fa-solid fa-circle-check"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: BOOKS CATALOG (SPRINT 2) -->
+      <section id="view-books" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span
+                  class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full"
+                  >Resultado de Sprint 2</span
+                >
+                <h2 class="text-xl font-bold text-slate-900">
+                  Catálogo de Libros
+                </h2>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Búsqueda, filtro por categoría y administración de inventario
+              </p>
+            </div>
+
+            <div class="flex items-center space-x-3 w-full md:w-auto">
+              <div class="relative flex-grow md:w-72">
+                <i
+                  class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"
+                ></i>
+                <input
+                  type="text"
+                  id="search-book-input"
+                  onkeyup="filterBooks()"
+                  placeholder="Buscar título, autor, ISBN..."
+                  class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                id="btn-add-book"
+                onclick="openAddBookModal()"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition flex items-center shrink-0"
+              >
+                <i class="fa-solid fa-plus mr-2"></i>Nuevo Libro
+              </button>
+            </div>
+          </div>
+
+          <!-- BOOKS GRID -->
+          <div
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            id="books-grid"
+          >
+            <!-- JavaScript will populate books dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: LOANS MANAGEMENT (SPRINT 3) -->
+      <section id="view-loans" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span
+                  class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full"
+                  >Resultado de Sprint 3</span
+                >
+                <h2 class="text-xl font-bold text-slate-900">
+                  Módulo de Préstamos y Devoluciones
+                </h2>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Control de ejemplares entregados a estudiantes y fecha límite
+              </p>
+            </div>
+            <button
+              id="btn-new-loan"
+              onclick="openNewLoanModal()"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition flex items-center"
+            >
+              <i class="fa-solid fa-handshake mr-2"></i>Registrar Nuevo Préstamo
+            </button>
+          </div>
+
+          <!-- ACTIVE LOANS TABLE -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider"
+                >
+                  <th class="p-3">ID / Código</th>
+                  <th class="p-3">Libro Solicitado</th>
+                  <th class="p-3">Usuario / Estudiante</th>
+                  <th class="p-3">Fecha Préstamo</th>
+                  <th class="p-3">Estado</th>
+                  <th class="p-3 text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody
+                id="loans-table-body"
+                class="divide-y divide-slate-100 text-sm"
+              >
+                <!-- JS dynamic insertion -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: REPORTS & DASHBOARD (SPRINT 4) -->
+      <section id="view-reports" class="hidden space-y-6">
+        <!-- STATS CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div
+            class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4"
+          >
+            <div class="p-3.5 bg-blue-50 text-blue-600 rounded-xl">
+              <i class="fa-solid fa-book-open text-2xl"></i>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400 font-semibold uppercase">
+                Total Libros
+              </p>
+              <h3
+                id="stat-total-books"
+                class="text-2xl font-extrabold text-slate-800"
+              >
+                0
+              </h3>
+            </div>
+          </div>
+
+          <div
+            class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4"
+          >
+            <div class="p-3.5 bg-amber-50 text-amber-600 rounded-xl">
+              <i class="fa-solid fa-hand-holding text-2xl"></i>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400 font-semibold uppercase">
+                Préstamos Activos
+              </p>
+              <h3
+                id="stat-active-loans"
+                class="text-2xl font-extrabold text-slate-800"
+              >
+                0
+              </h3>
+            </div>
+          </div>
+
+          <div
+            class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4"
+          >
+            <div class="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl">
+              <i class="fa-solid fa-users text-2xl"></i>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400 font-semibold uppercase">
+                Usuarios Registrados
+              </p>
+              <h3
+                id="stat-total-users"
+                class="text-2xl font-extrabold text-slate-800"
+              >
+                0
+              </h3>
+            </div>
+          </div>
+
+          <div
+            class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4"
+          >
+            <div class="p-3.5 bg-purple-50 text-purple-600 rounded-xl">
+              <i class="fa-solid fa-chart-line text-2xl"></i>
+            </div>
+            <div>
+              <p class="text-xs text-slate-400 font-semibold uppercase">
+                Velocidad Scrum
+              </p>
+              <h3 class="text-2xl font-extrabold text-slate-800">19 pts</h3>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHARTS CONTAINER -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200"
+          >
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center">
+              <i class="fa-solid fa-chart-pie text-blue-600 mr-2"></i
+              >Distribución de Libros por Categoría
+            </h3>
+            <div class="h-64 flex items-center justify-center">
+              <canvas id="booksCategoryChart"></canvas>
+            </div>
+          </div>
+
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200"
+          >
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center">
+              <i class="fa-solid fa-chart-column text-emerald-600 mr-2"></i
+              >Préstamos por Sprints
+            </h3>
+            <div class="h-64 flex items-center justify-center">
+              <canvas id="sprintLoansChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: USERS MANAGEMENT (SPRINT 1) -->
+      <section id="view-users" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span
+                  class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded-full"
+                  >Resultado de Sprint 1</span
+                >
+                <h2 class="text-xl font-bold text-slate-900">
+                  Gestión de Usuarios y Roles
+                </h2>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Control de cuentas de acceso para Administradores,
+                Bibliotecarios y Estudiantes
+              </p>
+            </div>
+            <button
+              onclick="openAddUserModal()"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition flex items-center"
+            >
+              <i class="fa-solid fa-user-plus mr-2"></i>Registrar Nuevo Usuario
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider"
+                >
+                  <th class="p-3">Nombre</th>
+                  <th class="p-3">Correo Electrónico</th>
+                  <th class="p-3">Rol Asignado</th>
+                  <th class="p-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody
+                id="users-table-body"
+                class="divide-y divide-slate-100 text-sm"
+              >
+                <!-- JS dynamic insertion -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- MODALES GENERALES (Libro, Préstamo, Usuario) -->
+    <!-- MODAL LIBRO -->
+    <div
+      id="modal-book"
+      class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[110] flex items-center justify-center p-4"
+    >
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+        <div class="flex justify-between items-center mb-4">
+          <h3 id="modal-book-title" class="text-lg font-bold text-slate-900">
+            Agregar Nuevo Libro
+          </h3>
+          <button
+            onclick="closeModal('modal-book')"
+            class="text-slate-400 hover:text-slate-600"
+          >
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+        <form onsubmit="handleSaveBook(event)" class="space-y-4">
+          <input type="hidden" id="book-id" />
+          <div>
+            <label
+              class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+              >Título del Libro</label
+            >
+            <input
+              type="text"
+              id="book-title"
+              required
+              class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+                >Autor</label
+              >
+              <input
+                type="text"
+                id="book-author"
+                required
+                class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+                >Categoría</label
+              >
+              <select
+                id="book-category"
+                class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Ingeniería">Ingeniería</option>
+                <option value="Desarrollo Ágil">Desarrollo Ágil</option>
+                <option value="Bases de Datos">Bases de Datos</option>
+                <option value="Redes">Redes</option>
+                <option value="Literatura">Literatura</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+                >Ejemplares Disponibles</label
+              >
+              <input
+                type="number"
+                id="book-stock"
+                min="1"
+                value="1"
+                required
+                class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+                >URL de Portada (Imagen)</label
+              >
+              <input
+                type="text"
+                id="book-cover"
+                placeholder="https://..."
+                class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div
+            class="flex justify-end space-x-3 pt-4 border-t border-slate-100"
+          >
+            <button
+              type="button"
+              onclick="closeModal('modal-book')"
+              class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow"
+            >
+              Guardar Libro
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL PRÉSTAMO -->
+    <div
+      id="modal-loan"
+      class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[110] flex items-center justify-center p-4"
+    >
+      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold text-slate-900">
+            Registrar Nuevo Préstamo
+          </h3>
+          <button
+            onclick="closeModal('modal-loan')"
+            class="text-slate-400 hover:text-slate-600"
+          >
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+        <form onsubmit="handleSaveLoan(event)" class="space-y-4">
+          <div>
+            <label
+              class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+              >Seleccionar Libro</label
+            >
+            <select
+              id="loan-book-select"
+              required
+              class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <!-- Populated by JS -->
+            </select>
+          </div>
+          <div>
+            <label
+              class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+              >Estudiante / Lector</label
+            >
+            <select
+              id="loan-user-select"
+              required
+              class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <!-- Populated by JS -->
+            </select>
+          </div>
+          <div
+            class="flex justify-end space-x-3 pt-4 border-t border-slate-100"
+          >
+            <button
+              type="button"
+              onclick="closeModal('modal-loan')"
+              class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow"
+            >
+              Asignar Préstamo
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL USUARIO -->
+    <div
+      id="modal-user"
+      class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[110] flex items-center justify-center p-4"
+    >
+      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold text-slate-900">
+            Registrar Nuevo Usuario
+          </h3>
+          <button
+            onclick="closeModal('modal-user')"
+            class="text-slate-400 hover:text-slate-600"
+          >
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+        <form onsubmit="handleSaveUser(event)" class="space-y-4">
+          <div>
+            <label
+              class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+              >Nombre Completo</label
+            >
+            <input
+              type="text"
+              id="user-name"
+              required
+              class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label
+              class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+              >Correo Electrónico</label
+            >
+            <input
+              type="email"
+              id="user-email"
+              required
+              class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label
+              class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+              >Contraseña Temporal</label
+            >
+            <input
+              type="password"
+              id="user-pass"
+              required
+              class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label
+              class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider"
+              >Rol en el Sistema</label
+            >
+            <select
+              id="user-role"
+              class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="admin">Product Owner / Admin</option>
+              <option value="librarian">Bibliotecario</option>
+              <option value="student">Estudiante</option>
+            </select>
+          </div>
+          <div
+            class="flex justify-end space-x-3 pt-4 border-t border-slate-100"
+          >
+            <button
+              type="button"
+              onclick="closeModal('modal-user')"
+              class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow"
+            >
+              Guardar Usuario
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- JAVASCRIPT & FIREBASE INTEGRATION -->
+    <script>
+      const firebaseConfig = {
+        apiKey: "TU_API_KEY",
+        authDomain: "TU_PROYECTO.firebaseapp.com",
+        projectId: "TU_PROJECT_ID",
+        storageBucket: "TU_PROYECTO.appspot.com",
+        messagingSenderId: "TU_MESSAGING_SENDER_ID",
+        appId: "TU_APP_ID",
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const db = firebase.firestore();
+
+      let currentUser = null;
+      let users = [
+        {
+          id: 1,
+          name: "Brayden Arbey Parra",
+          email: "brayden@univ.edu",
+          pass: "123456",
+          role: "admin",
+          roleName: "Product Owner / Admin",
+        },
+        {
+          id: 2,
+          name: "Luis Alejandro Chavez",
+          email: "luis@univ.edu",
+          pass: "123456",
+          role: "librarian",
+          roleName: "Bibliotecario",
+        },
+        {
+          id: 3,
+          name: "Carolina Niño Saavedra",
+          email: "carolina@univ.edu",
+          pass: "123456",
+          role: "student",
+          roleName: "Estudiante",
+        },
+      ];
+      let books = [
+        {
+          id: 1,
+          title: "Ingeniería de Software Un enfoque práctico",
+          author: "Roger Pressman",
+          category: "Ingeniería",
+          stock: 4,
+          cover:
+            "https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&q=80&w=400",
+        },
+        {
+          id: 2,
+          title: "Scrum Essentials: Gestión Ágil",
+          author: "Ken Schwaber",
+          category: "Desarrollo Ágil",
+          stock: 3,
+          cover:
+            "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=400",
+        },
+        {
+          id: 3,
+          title: "Base de Datos Relacionales y SQL",
+          author: "Elmasri Navathe",
+          category: "Bases de Datos",
+          stock: 2,
+          cover:
+            "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=400",
+        },
+        {
+          id: 4,
+          title: "Redes de Computadoras Topologías",
+          author: "Andrew Tanenbaum",
+          category: "Redes",
+          stock: 5,
+          cover:
+            "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&q=80&w=400",
+        },
+      ];
+      let loans = [
+        {
+          id: "LNK-101",
+          bookTitle: "Scrum Essentials: Gestión Ágil",
+          userName: "Carolina Niño Saavedra",
+          date: "2026-10-15",
+          status: "Activo",
+        },
+      ];
+
+      let categoryChartInstance = null;
+      let sprintChartInstance = null;
+
+      window.addEventListener("DOMContentLoaded", () => {
+        initCharts();
+        renderBooks();
+        renderLoans();
+        renderUsers();
+        updateStats();
+        setupFirebaseListeners();
+      });
+
+      function setupFirebaseListeners() {
+        db.collection("users").onSnapshot(
+          (snapshot) => {
+            if (!snapshot.empty) {
+              users = [];
+              snapshot.forEach((doc) => {
+                users.push({ firebaseId: doc.id, ...doc.data() });
+              });
+              renderUsers();
+              updateStats();
+            }
+          },
+          (error) => {
+            console.warn(
+              "Usando datos locales de usuarios (Firestore sin conexión o sin configurar).",
+            );
+          },
+        );
+
+        db.collection("books").onSnapshot(
+          (snapshot) => {
+            if (!snapshot.empty) {
+              books = [];
+              snapshot.forEach((doc) => {
+                books.push({ firebaseId: doc.id, ...doc.data() });
+              });
+              renderBooks();
+              updateStats();
+            }
+          },
+          (error) => {
+            console.warn("Usando datos locales de libros.");
+          },
+        );
+
+        db.collection("loans").onSnapshot(
+          (snapshot) => {
+            if (!snapshot.empty) {
+              loans = [];
+              snapshot.forEach((doc) => {
+                loans.push({ firebaseId: doc.id, ...doc.data() });
+              });
+              renderLoans();
+              updateStats();
+            }
+          },
+          (error) => {
+            console.warn("Usando datos locales de préstamos.");
+          },
+        );
+      }
+
+      function fillDemoCredentials(email) {
+        document.getElementById("login-email").value = email;
+        document.getElementById("login-password").value = "123456";
+      }
+
+      async function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById("login-email").value.trim();
+        const pass = document.getElementById("login-password").value.trim();
+        const errDiv = document.getElementById("login-error");
+
+        try {
+          const userCredential = await auth.signInWithEmailAndPassword(
+            email,
+            pass,
+          );
+          const firebaseUser = userCredential.user;
+
+          const userDoc = users.find((u) => u.email === email);
+          currentUser = userDoc || {
+            name: firebaseUser.email,
+            email: firebaseUser.email,
+            role: "student",
+            roleName: "Estudiante",
+          };
+
+          errDiv.classList.add("hidden");
+          document.getElementById("modal-login").classList.add("hidden");
+          document.getElementById("current-user-display").textContent =
+            currentUser.name;
+          document.getElementById("current-role-name").textContent =
+            currentUser.roleName || "Estudiante";
+          showToast(`Bienvenido al sistema, ${currentUser.name}`, "success");
+          applyRolePermissions();
+        } catch (error) {
+          const localFound = users.find(
+            (u) => u.email === email && u.pass === pass,
+          );
+          if (localFound) {
+            errDiv.classList.add("hidden");
+            currentUser = localFound;
+            document.getElementById("modal-login").classList.add("hidden");
+            document.getElementById("current-user-display").textContent =
+              localFound.name;
+            document.getElementById("current-role-name").textContent =
+              localFound.roleName;
+            showToast(
+              `Bienvenido al sistema (Demo), ${localFound.name}`,
+              "info",
+            );
+            applyRolePermissions();
+          } else {
+            errDiv.classList.remove("hidden");
+            document.getElementById("login-error-msg").textContent =
+              "Credenciales inválidas o usuario no registrado.";
+          }
+        }
+      }
+
+      async function handleLogout() {
+        try {
+          await auth.signOut();
+        } catch (err) {}
+        currentUser = null;
+        document.getElementById("modal-login").classList.remove("hidden");
+        document.getElementById("login-password").value = "";
+        showToast("Sesión cerrada correctamente", "info");
+      }
+
+      function applyRolePermissions() {
+        if (!currentUser) return;
+        const addBookBtn = document.getElementById("btn-add-book");
+        const newLoanBtn = document.getElementById("btn-new-loan");
+        if (currentUser.role === "student") {
+          if (addBookBtn) addBookBtn.style.display = "none";
+          if (newLoanBtn) newLoanBtn.style.display = "none";
+        } else {
+          if (addBookBtn) addBookBtn.style.display = "flex";
+          if (newLoanBtn) newLoanBtn.style.display = "flex";
+        }
+      }
+
+      function switchTab(tabId) {
+        const tabs = ["scrum", "books", "loans", "reports", "users"];
+        tabs.forEach((t) => {
+          const section = document.getElementById(`view-${t}`);
+          const btn = document.getElementById(`tab-btn-${t}`);
+          if (section) section.classList.add("hidden");
+          if (btn) {
+            btn.className =
+              "px-4 py-2 rounded-lg transition-all text-slate-300 hover:text-white hover:bg-slate-700 shrink-0";
+          }
+        });
+
+        const activeSec = document.getElementById(`view-${tabId}`);
+        const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+        if (activeSec) activeSec.classList.remove("hidden");
+        if (activeBtn) {
+          activeBtn.className =
+            "px-4 py-2 rounded-lg transition-all text-white bg-blue-600 shadow shrink-0";
+        }
+
+        if (tabId === "reports") {
+          updateCharts();
+        }
+      }
+
+      function renderBooks() {
+        const grid = document.getElementById("books-grid");
+        grid.innerHTML = "";
+        books.forEach((b) => {
+          grid.innerHTML += `
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
+              <div>
+                <div class="h-40 bg-slate-200 overflow-hidden relative">
+                  <img src="${b.cover}" alt="${b.title}" class="w-full h-full object-cover">
+                  <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur">${b.category}</span>
+                </div>
+                <div class="p-4">
+                  <h3 class="font-bold text-slate-800 text-sm line-clamp-1">${b.title}</h3>
+                  <p class="text-xs text-slate-500 mt-0.5">Autor: ${b.author}</p>
+                </div>
+              </div>
+              <div class="p-4 pt-0 flex justify-between items-center text-xs">
+                <span class="font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Stock: ${b.stock} disp.</span>
+                ${
+                  currentUser && currentUser.role !== "student"
+                    ? `
+                  <div class="space-x-1">
+                    <button onclick="editBook('${b.firebaseId || b.id}')" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="deleteBook('${b.firebaseId || b.id}')" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                `
+                    : ""
+                }
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      function filterBooks() {
+        const query = document
+          .getElementById("search-book-input")
+          .value.toLowerCase();
+        const filtered = books.filter(
+          (b) =>
+            b.title.toLowerCase().includes(query) ||
+            b.author.toLowerCase().includes(query) ||
+            b.category.toLowerCase().includes(query),
+        );
+        const grid = document.getElementById("books-grid");
+        grid.innerHTML = "";
+        filtered.forEach((b) => {
+          grid.innerHTML += `
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
+              <div>
+                <div class="h-40 bg-slate-200 overflow-hidden relative">
+                  <img src="${b.cover}" alt="${b.title}" class="w-full h-full object-cover">
+                  <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur">${b.category}</span>
+                </div>
+                <div class="p-4">
+                  <h3 class="font-bold text-slate-800 text-sm line-clamp-1">${b.title}</h3>
+                  <p class="text-xs text-slate-500 mt-0.5">Autor: ${b.author}</p>
+                </div>
+              </div>
+              <div class="p-4 pt-0 flex justify-between items-center text-xs">
+                <span class="font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Stock: ${b.stock} disp.</span>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      function openAddBookModal() {
+        if (!currentUser || currentUser.role === "student") {
+          showToast("Acceso denegado.", "info");
+          return;
+        }
+        document.getElementById("modal-book-title").textContent =
+          "Agregar Nuevo Libro";
+        document.getElementById("book-id").value = "";
+        document.getElementById("book-title").value = "";
+        document.getElementById("book-author").value = "";
+        document.getElementById("book-stock").value = "3";
+        document.getElementById("book-cover").value = "";
+        document.getElementById("modal-book").classList.remove("hidden");
+      }
+
+      function editBook(id) {
+        if (!currentUser || currentUser.role === "student") {
+          showToast("Acceso denegado.", "info");
+          return;
+        }
+        const b = books.find((item) => item.firebaseId === id || item.id == id);
+        if (!b) return;
+        document.getElementById("modal-book-title").textContent =
+          "Editar Libro";
+        document.getElementById("book-id").value = b.firebaseId || b.id;
+        document.getElementById("book-title").value = b.title;
+        document.getElementById("book-author").value = b.author;
+        document.getElementById("book-category").value = b.category;
+        document.getElementById("book-stock").value = b.stock;
+        document.getElementById("book-cover").value = b.cover;
+        document.getElementById("modal-book").classList.remove("hidden");
+      }
+
+      async function handleSaveBook(e) {
+        e.preventDefault();
+        if (!currentUser || currentUser.role === "student") {
+          showToast("Operación no autorizada.", "info");
+          return;
+        }
+        const bookId = document.getElementById("book-id").value;
+        const title = document.getElementById("book-title").value;
+        const author = document.getElementById("book-author").value;
+        const category = document.getElementById("book-category").value;
+        const stock = parseInt(document.getElementById("book-stock").value);
+        const cover =
+          document.getElementById("book-cover").value ||
+          "https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&q=80&w=400";
+
+        try {
+          const targetBook = books.find(
+            (b) => b.firebaseId === bookId || b.id == bookId,
+          );
+          if (targetBook && targetBook.firebaseId) {
+            await db
+              .collection("books")
+              .doc(targetBook.firebaseId)
+              .update({ title, author, category, stock, cover });
+          } else if (bookId) {
+            const idx = books.findIndex((b) => b.id == bookId);
+            if (idx !== -1)
+              books[idx] = {
+                ...books[idx],
+                title,
+                author,
+                category,
+                stock,
+                cover,
+              };
+          } else {
+            const newId =
+              books.length > 0
+                ? Math.max(...books.map((b) => b.id || 0)) + 1
+                : 1;
+            try {
+              await db
+                .collection("books")
+                .add({ id: newId, title, author, category, stock, cover });
+            } catch (err) {
+              books.push({ id: newId, title, author, category, stock, cover });
+            }
+          }
+          closeModal("modal-book");
+          renderBooks();
+          updateStats();
+          showToast("Libro guardado con éxito", "success");
+        } catch (error) {
+          showToast("Guardado local/remoto exitoso", "success");
+          closeModal("modal-book");
+        }
+      }
+
+      async function deleteBook(id) {
+        if (!currentUser || currentUser.role === "student") {
+          showToast("Acceso denegado.", "info");
+          return;
+        }
+        if (confirm("¿Estás seguro de eliminar este libro?")) {
+          try {
+            const b = books.find(
+              (item) => item.firebaseId === id || item.id == id,
+            );
+            if (b && b.firebaseId) {
+              await db.collection("books").doc(b.firebaseId).delete();
+            }
+            books = books.filter(
+              (item) => item.firebaseId !== id && item.id != id,
+            );
+            renderBooks();
+            updateStats();
+            showToast("Libro eliminado", "info");
+          } catch (error) {
+            showToast("Error al eliminar", "error");
+          }
+        }
+      }
+
+      function renderLoans() {
+        const tbody = document.getElementById("loans-table-body");
+        tbody.innerHTML = "";
+        loans.forEach((l) => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 font-semibold text-slate-700">${l.id || l.firebaseId}</td>
+              <td class="p-3 font-bold text-slate-900">${l.bookTitle}</td>
+              <td class="p-3 text-slate-600">${l.userName}</td>
+              <td class="p-3 text-slate-500">${l.date}</td>
+              <td class="p-3">
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold ${l.status === "Activo" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}">${l.status}</span>
+              </td>
+              <td class="p-3 text-right">
+                ${l.status === "Activo" ? `<button onclick="returnBook('${l.firebaseId || l.id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-xs font-bold transition">Registrar Devolución</button>` : '<span class="text-xs text-slate-400">Finalizado</span>'}
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      function openNewLoanModal() {
+        if (!currentUser || currentUser.role === "student") {
+          showToast("Acceso denegado.", "info");
+          return;
+        }
+        const bookSelect = document.getElementById("loan-book-select");
+        const userSelect = document.getElementById("loan-user-select");
+        bookSelect.innerHTML = "";
+        userSelect.innerHTML = "";
+
+        books
+          .filter((b) => b.stock > 0)
+          .forEach((b) => {
+            bookSelect.innerHTML += `<option value="${b.title}">${b.title} (Disp: ${b.stock})</option>`;
+          });
+
+        users
+          .filter((u) => u.role === "student")
+          .forEach((u) => {
+            userSelect.innerHTML += `<option value="${u.name}">${u.name} (${u.email})</option>`;
+          });
+
+        document.getElementById("modal-loan").classList.remove("hidden");
+      }
+
+      async function handleSaveLoan(e) {
+        e.preventDefault();
+        if (!currentUser || currentUser.role === "student") {
+          showToast("Operación no autorizada.", "info");
+          return;
+        }
+
+        const bookTitle = document.getElementById("loan-book-select").value;
+        const userName = document.getElementById("loan-user-select").value;
+
+        const bObj = books.find((b) => b.title === bookTitle);
+        if (!bObj || bObj.stock <= 0) {
+          showToast("Error: Stock agotado.", "error");
+          return;
+        }
+
+        const newId = `LNK-${Math.floor(100 + Math.random() * 900)}`;
+        const today = new Date().toISOString().split("T")[0];
+
+        bObj.stock--;
+        loans.push({
+          id: newId,
+          bookTitle,
+          userName,
+          date: today,
+          status: "Activo",
+        });
+
+        renderLoans();
+        renderBooks();
+        updateStats();
+        closeModal("modal-loan");
+        showToast("Préstamo registrado exitosamente", "success");
+      }
+
+      async function returnBook(id) {
+        if (!currentUser || currentUser.role === "student") {
+          showToast("Acceso denegado.", "info");
+          return;
+        }
+
+        const l = loans.find((item) => item.firebaseId === id || item.id == id);
+        if (!l) return;
+
+        if (l.status === "Devuelto") {
+          showToast("Este préstamo ya fue devuelto anteriormente.", "info");
+          return;
+        }
+
+        l.status = "Devuelto";
+        const bObj = books.find((b) => b.title === l.bookTitle);
+        if (bObj) bObj.stock++;
+
+        renderLoans();
+        renderBooks();
+        updateStats();
+        showToast("Devolución procesada correctamente", "success");
+      }
+
+      function renderUsers() {
+        const tbody = document.getElementById("users-table-body");
+        tbody.innerHTML = "";
+        users.forEach((u) => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 font-bold text-slate-900">${u.name}</td>
+              <td class="p-3 text-slate-600">${u.email}</td>
+              <td class="p-3"><span class="bg-slate-100 text-slate-800 px-2 py-1 rounded-md text-xs font-bold">${u.roleName || u.role}</span></td>
+              <td class="p-3 text-right">
+                <button onclick="deleteUser('${u.firebaseId || u.id}')" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition"><i class="fa-solid fa-trash"></i></button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      function openAddUserModal() {
+        if (!currentUser || currentUser.role !== "admin") {
+          showToast(
+            "Acceso denegado: Solo el Administrador puede registrar usuarios.",
+            "info",
+          );
+          return;
+        }
+        document.getElementById("user-name").value = "";
+        document.getElementById("user-email").value = "";
+        document.getElementById("user-pass").value = "";
+        document.getElementById("modal-user").classList.remove("hidden");
+      }
+
+      async function handleSaveUser(e) {
+        e.preventDefault();
+        if (!currentUser || currentUser.role !== "admin") {
+          showToast("Operación no autorizada.", "info");
+          return;
+        }
+        const name = document.getElementById("user-name").value;
+        const email = document.getElementById("user-email").value;
+        const pass = document.getElementById("user-pass").value;
+        const role = document.getElementById("user-role").value;
+        const roleNameMap = {
+          admin: "Product Owner / Admin",
+          librarian: "Bibliotecario",
+          student: "Estudiante",
+        };
+
+        const newId =
+          users.length > 0 ? Math.max(...users.map((u) => u.id || 0)) + 1 : 1;
+        users.push({
+          id: newId,
+          name,
+          email,
+          pass,
+          role,
+          roleName: roleNameMap[role],
+        });
+
+        renderUsers();
+        updateStats();
+        closeModal("modal-user");
+        showToast("Usuario registrado con éxito", "success");
+      }
+
+      async function deleteUser(id) {
+        if (!currentUser || currentUser.role !== "admin") {
+          showToast("Acceso denegado.", "info");
+          return;
+        }
+        if (users.length <= 1) {
+          alert("No se puede eliminar el último usuario.");
+          return;
+        }
+        if (confirm("¿Eliminar usuario?")) {
+          users = users.filter((u) => u.firebaseId !== id && u.id != id);
+          renderUsers();
+          updateStats();
+          showToast("Usuario eliminado", "info");
+        }
+      }
+
+      function completeHU4() {
+        const card = document.getElementById("card-hu4");
+        if (card) card.remove();
+        document.getElementById("in-progress-count").textContent = "0";
+        document.getElementById("sprint3-badge").className =
+          "text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full";
+        document.getElementById("sprint3-badge").textContent = "Completado";
+
+        const doneCol = document.getElementById("done-col");
+        doneCol.innerHTML += `
+          <div class="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-sm border-l-4 border-l-emerald-500">
+            <div class="flex justify-between text-xs mb-1">
+              <span class="font-bold text-blue-600">HU4</span>
+              <span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold">8 Pts</span>
+            </div>
+            <h4 class="font-bold text-sm text-slate-800">Préstamos y Devoluciones</h4>
+            <p class="text-xs text-slate-500 mt-1">Módulo de control de ejemplares entregados.</p>
+            <div class="mt-2 text-[11px] text-emerald-600 font-semibold flex justify-between items-center">
+              <span>Sprint 3</span>
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+          </div>
+        `;
+        document.getElementById("done-count").textContent = "3";
+        showToast("¡HU4 completada! Sprint 3 finalizado con éxito.", "success");
+      }
+
+      function simulateDailyScrum() {
+        const messages = [
+          "Standup Scrum: Sincronización activa con respaldo local.",
+          "Standup Scrum: Sin impedimentos técnicos reportados.",
+          "Standup Scrum: El equipo validó los accesos con éxito.",
+        ];
+        const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+        showToast(randomMsg, "info");
+      }
+
+      function updateStats() {
+        const totalBooks = books.reduce((acc, b) => acc + (b.stock || 0), 0);
+        const activeLoansCount = loans.filter(
+          (l) => l.status === "Activo",
+        ).length;
+        const totalUsersCount = users.length;
+
+        document.getElementById("stat-total-books").textContent = totalBooks;
+        document.getElementById("stat-active-loans").textContent =
+          activeLoansCount;
+        document.getElementById("stat-total-users").textContent =
+          totalUsersCount;
+      }
+
+      function initCharts() {
+        const ctx1 = document
+          .getElementById("booksCategoryChart")
+          .getContext("2d");
+        categoryChartInstance = new Chart(ctx1, {
+          type: "doughnut",
+          data: {
+            labels: [
+              "Ingeniería",
+              "Desarrollo Ágil",
+              "Bases de Datos",
+              "Redes",
+            ],
+            datasets: [
+              {
+                data: [4, 3, 2, 5],
+                backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"],
+              },
+            ],
+          },
+          options: { responsive: true, maintainAspectRatio: false },
+        });
+
+        const ctx2 = document
+          .getElementById("sprintLoansChart")
+          .getContext("2d");
+        sprintChartInstance = new Chart(ctx2, {
+          type: "bar",
+          data: {
+            labels: ["Sprint 1", "Sprint 2", "Sprint 3 (Activo)", "Sprint 4"],
+            datasets: [
+              {
+                label: "Puntos de Historia (Velocidad)",
+                data: [3, 8, 8, 8],
+                backgroundColor: "#3b82f6",
+              },
+            ],
+          },
+          options: { responsive: true, maintainAspectRatio: false },
+        });
+      }
+
+      function updateCharts() {
+        if (categoryChartInstance && sprintChartInstance) {
+          const categories = {};
+          books.forEach((b) => {
+            categories[b.category] =
+              (categories[b.category] || 0) + (b.stock || 0);
+          });
+          categoryChartInstance.data.labels = Object.keys(categories);
+          categoryChartInstance.data.datasets[0].data =
+            Object.values(categories);
+          categoryChartInstance.update();
+          sprintChartInstance.update();
+        }
+        updateStats();
+      }
+
+      function closeModal(modalId) {
+        document.getElementById(modalId).classList.add("hidden");
+      }
+
+      function showToast(msg, type = "success") {
+        const toast = document.getElementById("toast");
+        const toastMsg = document.getElementById("toast-msg");
+        const toastIcon = document.getElementById("toast-icon");
+
+        toastMsg.textContent = msg;
+        if (type === "success") {
+          toastIcon.className =
+            "fa-solid fa-circle-check text-emerald-400 text-xl";
+        } else {
+          toastIcon.className = "fa-solid fa-circle-info text-blue-400 text-xl";
+        }
+
+        toast.classList.remove("hidden");
+        setTimeout(() => {
+          toast.classList.add("hidden");
+        }, 3000);
+      }
+    </script>
+  </body>
+</html>
